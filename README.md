@@ -8,7 +8,7 @@ Simply, plug in the pad into your PC, voila! the external keyboard is working!
 <img width="262" height="280" alt="image" src="https://github.com/user-attachments/assets/67b123d8-bce8-4d97-b93c-2a962edc487a" />
 <img width="290" height="288" alt="image" src="https://github.com/user-attachments/assets/1ac3f5e4-bc5d-448c-b14e-b37151619e27" />
 <img width="421" height="236" alt="image" src="https://github.com/user-attachments/assets/3a61560f-12fc-4416-a185-734830c77675" />
-#BOM:
+<h3>BOM:</h3>
 <ul>
   <li>1x Seeed XIAO RP2040</li>
   <li>4x Tactile Push Buttons</li>
