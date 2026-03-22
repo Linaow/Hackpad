@@ -1,0 +1,124 @@
+"""
+Arrow Key Firmware for XIAO-RP2040-DIP
+=======================================
+Single-file version — no extra libraries needed.
+
+Hardware:
+  - PB1 → GPIO1  →  ↑ Up
+  - PB2 → GPIO2  →  → Right
+  - PB3 → GPIO3  →  ↓ Down
+  - PB4 → GPIO4  →  ← Left
+  - SK6812 LEDs  →  GPIO0 (2 chained)
+
+Requirements:
+  - MicroPython >= 1.23 for RP2040
+"""
+
+import time
+import usb.device
+from usb.device.hid import KeyboardInterface
+from machine import Pin
+from neopixel import NeoPixel
+
+# ─── HID KEYCODES ─────────────────────────────────────────────────────────────
+KEY_UP    = 0x52
+KEY_DOWN  = 0x51
+KEY_LEFT  = 0x50
+KEY_RIGHT = 0x4F
+
+# ─── USB HID KEYBOARD ─────────────────────────────────────────────────────────
+_kb = KeyboardInterface()
+usb.device.get().init(_kb, builtin_driver=True)
+
+def kb_press(keycode):
+    _kb.send_keys([keycode])
+
+def kb_release():
+    _kb.send_keys([])
+
+# ─── PIN CONFIGURATION ────────────────────────────────────────────────────────
+BUTTON_MAP = {
+    'UP':    {'pin': 1, 'keycode': KEY_UP,    'color': (0,   150, 255)},
+    'RIGHT': {'pin': 2, 'keycode': KEY_RIGHT, 'color': (0,   255,  80)},
+    'DOWN':  {'pin': 3, 'keycode': KEY_DOWN,  'color': (255,  80,   0)},
+    'LEFT':  {'pin': 4, 'keycode': KEY_LEFT,  'color': (200,   0, 255)},
+}
+
+LED_PIN      = 0
+NUM_LEDS     = 2
+IDLE_COLOR   = (5, 5, 5)
+DEBOUNCE_MS  = 20
+REPEAT_DELAY = 400
+REPEAT_RATE  = 80
+
+# ─── SETUP ────────────────────────────────────────────────────────────────────
+buttons = {
+    name: Pin(cfg['pin'], Pin.IN, Pin.PULL_UP)
+    for name, cfg in BUTTON_MAP.items()
+}
+
+np = NeoPixel(Pin(LED_PIN), NUM_LEDS)
+
+def set_leds(color):
+    for i in range(NUM_LEDS):
+        np[i] = color
+    np.write()
+
+# ─── STARTUP ──────────────────────────────────────────────────────────────────
+set_leds(IDLE_COLOR)
+print("Arrow key firmware ready.")
+time.sleep_ms(500)  # let USB enumerate
+
+# ─── MAIN LOOP ────────────────────────────────────────────────────────────────
+current_key    = None
+debounce_key   = None
+debounce_start = 0
+press_time     = 0
+last_repeat    = 0
+
+while True:
+    now     = time.ticks_ms()
+    raw_key = None
+
+    for name, btn in buttons.items():
+        if btn.value() == 0:
+            raw_key = name
+            break
+
+    # Debounce
+    if raw_key != debounce_key:
+        debounce_key   = raw_key
+        debounce_start = now
+
+    if time.ticks_diff(now, debounce_start) < DEBOUNCE_MS:
+        time.sleep_ms(5)
+        continue
+
+    confirmed_key = debounce_key
+
+    # Key just pressed
+    if confirmed_key and confirmed_key != current_key:
+        if current_key:
+            kb_release()
+        current_key = confirmed_key
+        cfg = BUTTON_MAP[current_key]
+        kb_press(cfg['keycode'])
+        set_leds(cfg['color'])
+        print(f"Arrow: {current_key}")
+        press_time  = now
+        last_repeat = now
+
+    # Key held — repeat
+    elif confirmed_key and confirmed_key == current_key:
+        if time.ticks_diff(now, press_time) > REPEAT_DELAY:
+            if time.ticks_diff(now, last_repeat) >= REPEAT_RATE:
+                kb_press(BUTTON_MAP[current_key]['keycode'])
+                last_repeat = now
+
+    # Key released
+    elif not confirmed_key and current_key:
+        kb_release()
+        set_leds(IDLE_COLOR)
+        current_key = None
+
+    time.sleep_ms(5)

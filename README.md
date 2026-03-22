@@ -1,3 +1,5 @@
 # Hackpad
-Mini Keypad (Four keys) with neopixels
-Controller: RP4020, Programed using Micropython
+Mini Keypad (Four keys for four directions) with neopixels that intract with the keys
+Simply, plug in the pad into your PC, voila! the external keyboard is working!
+
+
